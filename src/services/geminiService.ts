@@ -1,9 +1,21 @@
 import { GoogleGenAI, Type } from "@google/genai";
 import { ClassificationResult, Lawyer } from "../types";
 
-const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY || "" });
+let aiInstance: GoogleGenAI | null = null;
+
+function getAI() {
+  if (!aiInstance) {
+    const apiKey = process.env.GEMINI_API_KEY;
+    if (!apiKey) {
+      throw new Error("A chave da API do Gemini (GEMINI_API_KEY) não foi configurada. Por favor, adicione-a nas variáveis de ambiente.");
+    }
+    aiInstance = new GoogleGenAI({ apiKey });
+  }
+  return aiInstance;
+}
 
 const classificationSchema = {
+// ... (rest of the schema)
   type: Type.OBJECT,
   properties: {
     acts: {
@@ -33,6 +45,7 @@ const classificationSchema = {
 };
 
 export async function classifyProceduralActs(text: string): Promise<ClassificationResult> {
+  const ai = getAI();
   const response = await ai.models.generateContent({
     model: "gemini-3-flash-preview",
     contents: [

@@ -98,19 +98,29 @@ export async function generateReportPdf(acts: ProceduralAct[]) {
       const isAlvara = act.type.toLowerCase().includes('alvará');
       const isPriority = isAlvara || act.type.toLowerCase().includes('sentença') || act.type.toLowerCase().includes('acórdão');
 
+      // Calculate dynamic height
+      doc.setFontSize(9);
+      const tribunalText = `TRIBUNAL: ${act.court} / ${act.chamber}`;
+      const splitTribunal = doc.splitTextToSize(tribunalText, pageWidth - 30);
+      
+      const partesText = `PARTES: ${act.parties}`;
+      const splitPartes = doc.splitTextToSize(partesText, pageWidth - 30);
+      
+      const splitSummary = doc.splitTextToSize(act.summary, pageWidth - 30);
+      
+      // Height calculation: Title(7) + Processo/Data(6) + Tribunal(N*5) + Partes(N*5) + Tipo(7) + Summary(N*5) + Padding(10)
+      const actHeight = 7 + 6 + (splitTribunal.length * 5) + (splitPartes.length * 5) + 7 + (splitSummary.length * 5) + 10;
+
       // Check for page break
-      if (currentY > 240) {
+      if (currentY + actHeight > 275) {
         doc.addPage();
         currentY = 20;
       }
 
-      // Act Card
-      if (isAlvara) {
-        doc.setFillColor(240, 255, 240);
-        doc.rect(15, currentY - 5, pageWidth - 30, 40, "F");
-      } else if (isPriority) {
-        doc.setFillColor(240, 245, 255);
-        doc.rect(15, currentY - 5, pageWidth - 30, 40, "F");
+      // Act Card Background
+      if (isPriority) {
+        doc.setFillColor(isAlvara ? 240 : 240, isAlvara ? 255 : 245, isAlvara ? 240 : 255);
+        doc.rect(15, currentY - 5, pageWidth - 30, actHeight, "F");
       }
 
       doc.setDrawColor(230, 230, 230);
@@ -132,29 +142,34 @@ export async function generateReportPdf(acts: ProceduralAct[]) {
 
       currentY += 7;
 
-      doc.setTextColor(0, 0, 0);
+      doc.setTextColor(60, 60, 60);
       doc.setFontSize(9);
       doc.setFont("helvetica", "bold");
-      doc.setTextColor(60, 60, 60);
-      doc.text(`PROCESSO: ${act.caseNumber}`, 15, currentY);
-      doc.text(`TRIBUNAL: ${act.court} / ${act.chamber}`, 80, currentY);
-      doc.text(`DATA: ${act.date || '-'}`, 150, currentY);
-      currentY += 5;
       
+      // Line 1: Processo and Date
+      doc.text(`PROCESSO: ${act.caseNumber}`, 15, currentY);
+      doc.text(`DATA: ${act.date || '-'}`, pageWidth - 15, currentY, { align: "right" });
+      currentY += 6;
+
+      // Line 2: Tribunal
+      doc.text(splitTribunal, 15, currentY);
+      currentY += (splitTribunal.length * 5);
+      
+      // Line 3: Partes
       doc.setFont("helvetica", "italic");
       doc.setTextColor(100, 100, 100);
-      doc.text(`PARTES: ${act.parties}`, 15, currentY);
-      currentY += 5;
+      doc.text(splitPartes, 15, currentY);
+      currentY += (splitPartes.length * 5);
       
+      // Line 4: Tipo
       doc.setFont("helvetica", "normal");
-      doc.setTextColor(100, 100, 100);
       doc.text(`Tipo: ${act.type}`, 15, currentY);
-      currentY += 8;
+      currentY += 7;
 
+      // Summary
       doc.setTextColor(40, 40, 40);
-      const splitSummary = doc.splitTextToSize(act.summary, pageWidth - 30);
       doc.text(splitSummary, 15, currentY);
-      currentY += (splitSummary.length * 5) + 8;
+      currentY += (splitSummary.length * 5) + 12; // Extra space between cards
     });
   });
 
